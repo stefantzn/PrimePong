@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import './App.css';
 
 export default function App() {
@@ -10,14 +10,9 @@ export default function App() {
   const [gameScore, setGameScore] = useState({ A: 0, B: 0 });
 
   // Player A stats
-  const [playerAStats, setPlayerAStats] = useState({
-    totalHits: 0
-  });
-
+  const [playerAStats, setPlayerAStats] = useState({ totalHits: 0 });
   // Player B stats
-  const [playerBStats, setPlayerBStats] = useState({
-    totalHits: 0
-  });
+  const [playerBStats, setPlayerBStats] = useState({ totalHits: 0 });
 
   // Overlays (center hit, scoring)
   const [centerHitEvent, setCenterHitEvent] = useState(false);
@@ -44,8 +39,12 @@ export default function App() {
     movement: 'not moving'
   });
 
+  // Keep track of the previous force values (for detecting rising edges)
+  const lastForceA = useRef(0);  
+  const lastForceB = useRef(0);  
+
   // ---------------------
-  // Audio (optional)
+  // Audio
   // ---------------------
   const playRandomScoreSound = () => {
     const scoreSounds = [
@@ -90,19 +89,19 @@ export default function App() {
   // CENTER HIT EVENT
   // ---------------------
   const triggerCenterHit = () => {
-    // Only trigger once if not already active
-    if (centerHitEvent) return; 
+    if (centerHitEvent) return; // Only once if not active
     console.log('Center hit triggered!');
     playCenterHitSound();
     setCenterHitEvent(true);
 
-    // If you want center hits to increment both players, you can do so here:
+    // If you want center hits to increment both players, do so here:
     setPlayerAStats((prev) => ({ ...prev, totalHits: prev.totalHits + 1 }));
     setPlayerBStats((prev) => ({ ...prev, totalHits: prev.totalHits + 1 }));
 
+    // Show "BOOM!" for 1 second (1000 ms)
     setTimeout(() => {
       setCenterHitEvent(false);
-    }, 3000);
+    }, 1000);
   };
 
   // ---------------------
@@ -113,6 +112,7 @@ export default function App() {
     setGameScore((prev) => {
       const newA = winner === 'A' ? prev.A + 1 : prev.A;
       const newB = winner === 'B' ? prev.B + 1 : prev.B;
+
       if (winner === 'A') {
         setPlayerAStats((p) => ({ ...p, totalHits: p.totalHits + 1 }));
       } else {
@@ -128,9 +128,10 @@ export default function App() {
   };
 
   // ---------------------
-  // POLL: PLAYER A => IP .13
-  // (Remove the line that increments A if force_value=1
-  // to avoid double increments.)
+  // POLLING: PLAYER A => IP .13
+  // Poll every 10 ms
+  // Rising edge detection: if lastForceA=0 and new=1 => increment hits
+  // Then store new in lastForceA
   // ---------------------
   useEffect(() => {
     const pollA = async () => {
@@ -139,27 +140,41 @@ export default function App() {
         if (!resp.ok) throw new Error('Bad response from A');
         const data = await resp.json();
 
-        // NO direct increment of playerAStats here
-        // We only read sensor data
+        // Read the new force_value
+        const fVal = data.force_value;
+        // If lastForce=0 and fVal=1 => increment Player A hits
+        if (lastForceA.current === 0 && fVal === 1) {
+          setPlayerAStats((prev) => ({
+            ...prev,
+            totalHits: prev.totalHits + 1
+          }));
+        }
+
+        // Store sensor data
         setSensorA({
-          force_value: data.force_value,
+          force_value: fVal,
           accel_x: data.accel_x,
           accel_y: data.accel_y,
           accel_z: data.accel_z,
           movement: data.movement.toLowerCase()
         });
+
+        // Update the ref
+        lastForceA.current = fVal;
       } catch (err) {
         console.error('Error polling A (.13):', err);
       }
     };
 
     pollA();
-    const intA = setInterval(pollA, 1000);
+    const intA = setInterval(pollA, 10);
     return () => clearInterval(intA);
   }, []);
 
   // ---------------------
-  // POLL: PLAYER B => IP .12
+  // POLLING: PLAYER B => IP .12
+  // Poll every 10 ms
+  // Rising edge detection for B => increment B hits
   // ---------------------
   useEffect(() => {
     const pollB = async () => {
@@ -168,32 +183,83 @@ export default function App() {
         if (!resp.ok) throw new Error('Bad response from B');
         const data = await resp.json();
 
+        const fVal = data.force_value;
+        // If lastForceB=0 and fVal=1 => increment B hits
+        if (lastForceB.current === 0 && fVal === 1) {
+          setPlayerBStats((prev) => ({
+            ...prev,
+            totalHits: prev.totalHits + 1
+          }));
+        }
+
         setSensorB({
-          force_value: data.force_value,
+          force_value: fVal,
           accel_x: data.accel_x,
           accel_y: data.accel_y,
           accel_z: data.accel_z,
           movement: data.movement.toLowerCase()
         });
+
+        lastForceB.current = fVal;
       } catch (err) {
         console.error('Error polling B (.12):', err);
       }
     };
 
     pollB();
-    const intB = setInterval(pollB, 1000);
+    const intB = setInterval(pollB, 10);
     return () => clearInterval(intB);
   }, []);
 
   // ---------------------
-  // useEffect: If either sensor has force=1 => centerHit
-  // This is optional. If you only want centerHit for Player A, check only sensorA.
+  // If either sensor sees rising edge => centerHit
+  // We'll detect rising edge with lastForceA/B logic
+  // 
+  // But if you still want "force=1 => boom" each time,
+  // we can do a rising-edge check here too.
+  // 
+  // Or simpler approach: if centerHit triggers for each poll,
+  // you might get duplicates. 
+  // 
+  // We'll do a check:
+  // If (lastForceA=0 => 1) or (lastForceB=0 => 1) => trigger once
+  // But we've done that in the poll. 
+  //
+  // If you want a centerHit that triggers whenever new=1:
+  // Do the same approach:
+  // If lastForceA.current=0 && sensorA.force_value=1 => trigger
+  // If lastForceB.current=0 && sensorB.force_value=1 => trigger
+  // 
+  // We'll do that in a separate effect.
   // ---------------------
   useEffect(() => {
-    if ((sensorA.force_value === 1 || sensorB.force_value === 1) && !centerHitEvent) {
-      triggerCenterHit();
+    // If A just went from 0 -> 1 or B 0 ->1 => center hit
+    // We detect that by storing them in local vars
+    const fA = sensorA.force_value;
+    const fB = sensorB.force_value;
+
+    // If either is 1 but was 0 last time => centerHit
+    // We'll track that with lastForceA/B in the same effect
+    // Actually simpler: we'll do it directly in the poll
+    // so we don't double-detect. 
+    // 
+    // If you want it here, you'd do something like:
+    // if (lastForceA.current===0 && fA===1 && !centerHitEvent) { triggerCenterHit(); }
+    // if (lastForceB.current===0 && fB===1 && !centerHitEvent) { triggerCenterHit(); }
+
+    // For clarity, let's do it here:
+    if (!centerHitEvent) {
+      if (lastForceA.current === 1 && fA === 1) {
+        // means it was already 1 in the poll => we don't do it again
+      }
+      if (lastForceA.current === 0 && fA === 1) {
+        triggerCenterHit();
+      }
+      if (lastForceB.current === 0 && fB === 1) {
+        triggerCenterHit();
+      }
     }
-  }, [sensorA.force_value, sensorB.force_value, centerHitEvent]);
+  }, [sensorA, sensorB, centerHitEvent]);
 
   // ---------------------
   // RENDER
@@ -225,33 +291,35 @@ export default function App() {
       <div className="app-container">
         {/* Scoreboard */}
         <div className="score-board">
-          <h1>
-            {gameScore.A}:{gameScore.B}
-          </h1>
+          <h1>{gameScore.A}:{gameScore.B}</h1>
         </div>
 
         {/* Player A Column */}
         <div className="player-stats left-stats">
           <h2>Player A</h2>
           <p>Total Hits: {playerAStats.totalHits}</p>
-          {sensorA.movement === 'very fast' && <p className="swing-message">SWING!</p>}
+          {sensorA.movement === 'very fast' && (
+            <p className="swing-message">SWING!</p>
+          )}
         </div>
 
         {/* Player B Column */}
         <div className="player-stats right-stats">
           <h2>Player B</h2>
           <p>Total Hits: {playerBStats.totalHits}</p>
-          {sensorB.movement === 'very fast' && <p className="swing-message">SWING!</p>}
+          {sensorB.movement === 'very fast' && (
+            <p className="swing-message">SWING!</p>
+          )}
         </div>
 
-        {/* Center-Hit Overlay */}
+        {/* Center-Hit Overlay (1s) */}
         {centerHitEvent && (
           <div className="overlay explosion">
             <h1>BOOM! CENTER HIT</h1>
           </div>
         )}
 
-        {/* Score Event Overlay */}
+        {/* Score Event Overlay (3s) */}
         {scoreEvent && (
           <div className="overlay score-event">
             {scoreEvent === 'A' ? (
