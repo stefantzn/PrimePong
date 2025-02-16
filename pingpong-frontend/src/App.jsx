@@ -1,242 +1,239 @@
-import React, { useState } from 'react';
+import React from 'react';
 import './App.css';
 
-function App() {
-  // Define game phases: 'waiting', 'starting', 'serving', 'game'
-  const [gamePhase, setGamePhase] = useState('waiting');
+class App extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = {
+      gamePhase: 'waiting',       // 'waiting', 'starting', 'serving', 'game'
+      currentServer: 'A',
+      gameScore: { A: 0, B: 0 },
+      playerAStats: { totalHits: 0, recentSwingSpeed: 0, accuracy: 0 },
+      playerBStats: { totalHits: 0, recentSwingSpeed: 0, accuracy: 0 },
+      centerHitEvent: false,
+      scoreEvent: null            // 'A' or 'B'
+    };
+    this.forceIntervalId = null;
+  }
 
-  // Track which player is currently serving ('A' or 'B')
-  const [currentServer, setCurrentServer] = useState('A');
-
-  // MAIN GAME STATES (used in the "game" phase)
-  const [gameScore, setGameScore] = useState({ A: 0, B: 0 });
-  const [playerAStats, setPlayerAStats] = useState({
-    totalHits: 0,
-    recentSwingSpeed: 0,
-    accuracy: 0,
-  });
-  const [playerBStats, setPlayerBStats] = useState({
-    totalHits: 0,
-    recentSwingSpeed: 0,
-    accuracy: 0,
-  });
-
-  // EVENT STATES (for overlays)
-  const [centerHitEvent, setCenterHitEvent] = useState(false);
-  const [scoreEvent, setScoreEvent] = useState(null); // 'A' or 'B'
-
-  // AUDIO FILE PATHS (assumed to be in the public folder)
-  const scoreSounds = [
-    '/scoreSound1.mp3',
-    '/scoreSound2.mp3',
-    '/scoreSound3.mp3',
-    '/scoreSound4.mp3',
-    '/scoreSound5.mp3',
-  ];
-  const centerHitSound = '/centerHit.mp3';
-  const startGameSound = '/startGameSound.mp3';
-
-  // HELPER: Play a random score sound
-  const playRandomScoreSound = () => {
+  // --- AUDIO HELPERS ---
+  playRandomScoreSound = () => {
+    const scoreSounds = [
+      '/scoreSound1.mp3',
+      '/scoreSound2.mp3',
+      '/scoreSound3.mp3',
+      '/scoreSound4.mp3',
+      '/scoreSound5.mp3'
+    ];
     const randomIndex = Math.floor(Math.random() * scoreSounds.length);
-    const audio = new Audio(scoreSounds[randomIndex]);
-    audio.play();
+    new Audio(scoreSounds[randomIndex]).play();
   };
 
-  // HELPER: Play center hit sound
-  const playCenterHitSound = () => {
-    const audio = new Audio(centerHitSound);
-    audio.play();
+  playCenterHitSound = () => {
+    new Audio('/centerHit.mp3').play();
   };
 
-  // HELPER: Play start game sound
-  const playStartGameSound = () => {
-    const audio = new Audio(startGameSound);
-    audio.play();
+  playStartGameSound = () => {
+    new Audio('/startGameSound.mp3').play();
   };
 
   // --- PHASE TRANSITIONS ---
-
-  // 1) WAITING -> STARTING -> SERVING -> GAME
-  const simulateSensorsPressed = () => {
-    // Move from waiting -> starting
-    playStartGameSound();
-    setGamePhase('starting');
-
-    // After 2 seconds, move to "serving" for Player A
+  simulateSensorsPressed = () => {
+    this.playStartGameSound();
+    this.setState({ gamePhase: 'starting' });
     setTimeout(() => {
-      setCurrentServer('A');
-      setGamePhase('serving');
-
-      // After 3 seconds, move to the main game
+      this.setState({ currentServer: 'A', gamePhase: 'serving' });
       setTimeout(() => {
-        setGamePhase('game');
+        this.setState({ gamePhase: 'game' });
       }, 3000);
     }, 2000);
   };
 
-  // 2) Show the serve screen for whichever player is now serving
-  //    then go back to the main game after 2 seconds
-  const showServeScreen = (server) => {
-    setCurrentServer(server);
-    setGamePhase('serving');
+  showServeScreen = (server) => {
+    this.setState({ currentServer: server, gamePhase: 'serving' });
     setTimeout(() => {
-      setGamePhase('game');
+      this.setState({ gamePhase: 'game' });
     }, 2000);
   };
 
   // --- CENTER HIT EVENT ---
-  const triggerCenterHit = () => {
-    playCenterHitSound();
-    setCenterHitEvent(true);
-    setTimeout(() => setCenterHitEvent(false), 3000);
-  };
-
-  // --- SCORING EVENT ---
-  const triggerScoreEvent = (winner) => {
-    playRandomScoreSound();
-
-    // Update score and stats based on the winner
-    setGameScore((prev) => {
-      const newA = winner === 'A' ? prev.A + 1 : prev.A;
-      const newB = winner === 'B' ? prev.B + 1 : prev.B;
-
-      if (winner === 'A') {
-        setPlayerAStats((prevStats) => {
-          const newHits = prevStats.totalHits + 1;
-          const newAccuracy = newB > 0 ? Math.round((newHits / newB) * 100) : 0;
-          return {
-            ...prevStats,
-            totalHits: newHits,
-            recentSwingSpeed: Math.random() * 10,
-            accuracy: newAccuracy,
-          };
-        });
-      } else {
-        setPlayerBStats((prevStats) => {
-          const newHits = prevStats.totalHits + 1;
-          const newAccuracy = newA > 0 ? Math.round((newHits / newA) * 100) : 0;
-          return {
-            ...prevStats,
-            totalHits: newHits,
-            recentSwingSpeed: Math.random() * 10,
-            accuracy: newAccuracy,
-          };
-        });
-      }
-
-      return { A: newA, B: newB };
-    });
-
-    // Show the "Score!" / "Good Try!" overlay
-    setScoreEvent(winner);
+  // When triggered, plays the center hit sound and shows an overlay for 3 seconds.
+  triggerCenterHit = () => {
+    if (this.state.centerHitEvent) return; // Prevent duplicate triggers
+    console.log('Center hit triggered!');
+    this.playCenterHitSound();
+    this.setState({ centerHitEvent: true });
     setTimeout(() => {
-      setScoreEvent(null);
-
-      // After the overlay, show the "serve" screen for the scoring player
-      showServeScreen(winner);
+      this.setState((prevState) => {
+        const newTotal = prevState.playerAStats.totalHits + 1;
+        console.log('Player A totalHits updated to:', newTotal);
+        return {
+          playerAStats: { ...prevState.playerAStats, totalHits: newTotal },
+          centerHitEvent: false
+        };
+      });
     }, 3000);
   };
 
-  // ----------------------------------------------------
-  // RENDER BASED ON GAME PHASE
-  // ----------------------------------------------------
-  if (gamePhase === 'waiting') {
-    // WAITING SCREEN
-    return (
-      <div className="waiting-screen">
-        <img
-          src="/paddles.png"
-          alt="Ping Pong Paddles"
-          className="paddles-image"
-        />
-        <h1>Prime Pong</h1>
-        <button onClick={simulateSensorsPressed}>
-          Simulate Both Sensors Pressed
-        </button>
-      </div>
-    );
-  } else if (gamePhase === 'starting') {
-    // QUICK "GAME START!" SCREEN
-    return (
-      <div className="start-screen">
-        <h1>Game Start!</h1>
-      </div>
-    );
-  } else if (gamePhase === 'serving') {
-    // SERVING SCREEN: Show who is serving
-    return (
-      <div className="serve-screen">
-        <h1>Player {currentServer} Serve</h1>
-      </div>
-    );
-  } else {
-    // MAIN GAME SCREEN (gamePhase === 'game')
-    return (
-      <div className="app-container">
-        {/* Scoreboard */}
-        <div className="score-board">
-          <h1>
-            {gameScore.A}:{gameScore.B}
-          </h1>
-        </div>
+  // --- SCORING EVENT (manual controls) ---
+  triggerScoreEvent = (winner) => {
+    this.playRandomScoreSound();
+    this.setState((prevState) => {
+      const newA = winner === 'A' ? prevState.gameScore.A + 1 : prevState.gameScore.A;
+      const newB = winner === 'B' ? prevState.gameScore.B + 1 : prevState.gameScore.B;
+      let newPlayerAStats = { ...prevState.playerAStats };
+      let newPlayerBStats = { ...prevState.playerBStats };
 
-        {/* Player A Stats */}
-        <div className="player-stats left-stats">
-          <h2>Player A</h2>
-          <p>Total Hits: {playerAStats.totalHits}</p>
-          <p>Recent Swing Speed: {playerAStats.recentSwingSpeed.toFixed(1)} m/s</p>
-          <p>Accuracy: {playerAStats.accuracy}%</p>
-        </div>
+      if (winner === 'A') {
+        newPlayerAStats.totalHits += 1;
+        newPlayerAStats.recentSwingSpeed = Math.random() * 10;
+        newPlayerAStats.accuracy =
+          newB > 0 ? Math.round((newPlayerAStats.totalHits / newB) * 100) : 0;
+      } else {
+        newPlayerBStats.totalHits += 1;
+        newPlayerBStats.recentSwingSpeed = Math.random() * 10;
+        newPlayerBStats.accuracy =
+          newA > 0 ? Math.round((newPlayerBStats.totalHits / newA) * 100) : 0;
+      }
+      return {
+        gameScore: { A: newA, B: newB },
+        playerAStats: newPlayerAStats,
+        playerBStats: newPlayerBStats,
+        scoreEvent: winner
+      };
+    });
+    setTimeout(() => {
+      this.setState({ scoreEvent: null });
+      this.showServeScreen(winner);
+    }, 3000);
+  };
 
-        {/* Player B Stats */}
-        <div className="player-stats right-stats">
-          <h2>Player B</h2>
-          <p>Total Hits: {playerBStats.totalHits}</p>
-          <p>Recent Swing Speed: {playerBStats.recentSwingSpeed.toFixed(1)} m/s</p>
-          <p>Accuracy: {playerBStats.accuracy}%</p>
-        </div>
+  // --- POLL SENSOR DATA ---
+  // Polls the ESP endpoint (which returns JSON) every 250ms.
+  // If "force_value" is 1 and no center hit is active, trigger center hit.
+  pollSensorData = async () => {
+    try {
+      const response = await fetch("http://172.20.10.13/");
+      if (response.ok) {
+        const data = await response.json();
+        // Expected data format:
+        // {"force_value": 1, "accel_x": 9.80, "accel_y": -0.24, "accel_z": -0.57, "movement": "Slow", "hit": 0, "swing": 0}
+        const forceVal = Number(data.force_value);
+        console.log("Fetched force_value:", forceVal);
+        if (forceVal === 1 && !this.state.centerHitEvent) {
+          console.log("force_value is 1 - triggering center hit.");
+          this.triggerCenterHit();
+        }
+      } else {
+        console.error("Failed to fetch sensor data");
+      }
+    } catch (error) {
+      console.error("Error fetching sensor data:", error);
+    }
+  };
 
-        {/* Center-Hit Explosion Overlay */}
-        {centerHitEvent && (
-          <div className="overlay explosion">
-            <h1>BOOM! CENTER HIT</h1>
+  componentDidMount() {
+    // Poll every 250ms for faster reaction time.
+    this.pollSensorData(); // Initial call
+    this.forceIntervalId = setInterval(this.pollSensorData, 250);
+  }
+
+  componentWillUnmount() {
+    clearInterval(this.forceIntervalId);
+  }
+
+  // --- RENDERING ---
+  render() {
+    const { gamePhase, currentServer, gameScore, playerAStats, playerBStats, centerHitEvent, scoreEvent } = this.state;
+    if (gamePhase === 'waiting') {
+      return (
+        <div className="waiting-screen">
+          <img src="/paddles.png" alt="Ping Pong Paddles" className="paddles-image" />
+          <h1>Prime Pong</h1>
+          <button onClick={this.simulateSensorsPressed}>
+            Simulate Both Sensors Pressed
+          </button>
+        </div>
+      );
+    } else if (gamePhase === 'starting') {
+      return (
+        <div className="start-screen">
+          <h1>Game Start!</h1>
+        </div>
+      );
+    } else if (gamePhase === 'serving') {
+      return (
+        <div className="serve-screen">
+          <h1>Player {currentServer} Serve</h1>
+        </div>
+      );
+    } else {
+      return (
+        <div className="app-container">
+          {/* Scoreboard */}
+          <div className="score-board">
+            <h1>
+              {gameScore.A}:{gameScore.B}
+            </h1>
           </div>
-        )}
 
-        {/* Score Event Overlay */}
-        {scoreEvent && (
-          <div className="overlay score-event">
-            {scoreEvent === 'A' ? (
-              <>
-                <div className="score-event-half winner">
-                  <h1>Score!</h1>
-                </div>
-                <div className="score-event-half loser">
-                  <h1>Good Try!</h1>
-                </div>
-              </>
-            ) : (
-              <>
-                <div className="score-event-half loser">
-                  <h1>Good Try!</h1>
-                </div>
-                <div className="score-event-half winner">
-                  <h1>Score!</h1>
-                </div>
-              </>
-            )}
+          {/* Player A Stats */}
+          <div className="player-stats left-stats">
+            <h2>Player A</h2>
+            <p>Total Hits: {playerAStats.totalHits}</p>
+            <p>Recent Swing Speed: {playerAStats.recentSwingSpeed.toFixed(1)} m/s</p>
+            <p>Accuracy: {playerAStats.accuracy}%</p>
           </div>
-        )}
 
-        {/* Demo Controls */}
-        <div className="controls">
-          <button onClick={triggerCenterHit}>Trigger Center Hit</button>
-          <button onClick={() => triggerScoreEvent('A')}>Player A Scores</button>
-          <button onClick={() => triggerScoreEvent('B')}>Player B Scores</button>
+          {/* Player B Stats */}
+          <div className="player-stats right-stats">
+            <h2>Player B</h2>
+            <p>Total Hits: {playerBStats.totalHits}</p>
+            <p>Recent Swing Speed: {playerBStats.recentSwingSpeed.toFixed(1)} m/s</p>
+            <p>Accuracy: {playerBStats.accuracy}%</p>
+          </div>
+
+          {/* Center-Hit Overlay */}
+          {centerHitEvent && (
+            <div className="overlay explosion">
+              <h1>BOOM! CENTER HIT</h1>
+            </div>
+          )}
+
+          {/* Score Event Overlay */}
+          {scoreEvent && (
+            <div className="overlay score-event">
+              {scoreEvent === 'A' ? (
+                <>
+                  <div className="score-event-half winner">
+                    <h1>Score!</h1>
+                  </div>
+                  <div className="score-event-half loser">
+                    <h1>Good Try!</h1>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="score-event-half loser">
+                    <h1>Good Try!</h1>
+                  </div>
+                  <div className="score-event-half winner">
+                    <h1>Score!</h1>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+
+          {/* Demo Controls */}
+          <div className="controls">
+            <button onClick={this.triggerCenterHit}>Trigger Center Hit</button>
+            <button onClick={() => this.triggerScoreEvent('A')}>Player A Scores</button>
+            <button onClick={() => this.triggerScoreEvent('B')}>Player B Scores</button>
+          </div>
         </div>
-      </div>
-    );
+      );
+    }
   }
 }
 
