@@ -1,42 +1,240 @@
-#root {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 2rem;
+/*
+   1) Import a scoreboard-like font (Orbitron).
+*/
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@700&display=swap');
+
+body, html {
+  margin: 0;
+  padding: 0;
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  background: #000;
+}
+
+/* -----------------------------
+   WAITING SCREEN (Phase: waiting)
+----------------------------- */
+.waiting-screen {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  width: 100vw;
+  background: linear-gradient(135deg, #1f2f3f 0%, #3c5060 100%);
+  color: #fff;
+}
+
+.waiting-screen .paddles-image {
+  width: 200px;
+  margin-bottom: 1.5rem;
+}
+
+.waiting-screen h1 {
+  font-size: 8rem;
+  margin-bottom: 2rem;
+}
+
+.waiting-screen button {
+  padding: 16px 24px;
+  font-size: 1.5rem;
+  border: none;
+  border-radius: 6px;
+  background: #444;
+  color: #fff;
+  cursor: pointer;
+  transition: background 0.3s, transform 0.2s;
+}
+
+.waiting-screen button:hover {
+  background: #666;
+  transform: scale(1.05);
+}
+
+/* -----------------------------
+   START SCREEN (Phase: starting)
+----------------------------- */
+.start-screen {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  width: 100vw;
+  background: url('/gamestart.jpg') center center / cover no-repeat;
+  color: #fff;
+}
+
+.start-screen h1 {
+  font-size: 8rem;
+  margin: 0;
+  text-shadow: 2px 2px 5px rgba(0,0,0,0.7);
+}
+
+/* -----------------------------
+   SERVE SCREEN (Phase: serving)
+----------------------------- */
+.serve-screen {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  width: 100vw;
+  background: linear-gradient(135deg, #333, #555);
+  color: #fff;
+}
+
+.serve-screen h1 {
+  font-size: 8rem;
+  margin: 0;
+  text-shadow: 2px 2px 5px rgba(0,0,0,0.7);
+}
+
+/* -----------------------------
+   MAIN GAME SCREEN (Phase: game)
+----------------------------- */
+.app-container {
+  position: relative;
+  height: 100vh;
+  width: 100vw;
+  background: linear-gradient(135deg, #141e30 0%, #243b55 100%);
+  color: #fff;
+  overflow: hidden;
+}
+
+/* Scoreboard: scoreboard-like font, super large */
+.score-board {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
   text-align: center;
 }
 
-.logo {
-  height: 6em;
-  padding: 1.5em;
-  will-change: filter;
-  transition: filter 300ms;
-}
-.logo:hover {
-  filter: drop-shadow(0 0 2em #646cffaa);
-}
-.logo.react:hover {
-  filter: drop-shadow(0 0 2em #61dafbaa);
+.score-board h1 {
+  font-family: 'Orbitron', sans-serif;  
+  font-size: 16rem;   /* MASSIVE score */
+  margin: 0;
+  letter-spacing: 5px;
 }
 
-@keyframes logo-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
+/* Player Stats Panels */
+.player-stats {
+  position: absolute;
+  top: 20px;
+  bottom: 20px;
+  width: 300px;
+  padding: 15px;
+  background: rgba(0, 0, 0, 0.4);
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-radius: 10px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  a:nth-of-type(2) .logo {
-    animation: logo-spin infinite 20s linear;
-  }
+.player-stats h2 {
+  margin-top: 0;
+  margin-bottom: 1rem;
+  font-size: 3rem;
+  text-align: center;
 }
 
-.card {
-  padding: 2em;
+.player-stats p {
+  margin: 15px 0;
+  font-size: 2rem;
+  text-align: center;
 }
 
-.read-the-docs {
-  color: #888;
+.left-stats {
+  left: 20px;
 }
+
+.right-stats {
+  right: 20px;
+}
+
+/* Full-screen overlay for events */
+.overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: flex;
+  width: 100%;
+  height: 100%;
+  z-index: 1000;
+  animation: fadeIn 0.4s ease forwards;
+}
+
+/* Explosion overlay */
+.explosion {
+  justify-content: center;
+  align-items: center;
+  background: url('/explosion.gif') center center / cover no-repeat;
+}
+
+.explosion h1 {
+  font-size: 10rem;
+  color: #fff;
+  text-shadow: 3px 3px 5px #000;
+}
+
+/* Score Event Overlay (Split-screen) */
+.score-event {
+  flex-direction: row;
+}
+
+.score-event-half {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.score-event-half h1 {
+  font-size: 5rem;
+  margin: 0;
+  text-shadow: 2px 2px 4px #000;
+}
+
+/* Winner side = green, Loser side = red */
+.winner {
+  background: rgba(0, 255, 0, 0.8);
+}
+
+.loser {
+  background: rgba(255, 0, 0, 0.8);
+}
+
+/* Simple fade-in animation */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Demo Controls (Centered near bottom) */
+.controls {
+  position: absolute;
+  bottom: 100px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1100;
+  display: flex;
+  gap: 10px;
+}
+
+.controls button {
+  padding: 16px 24px;
+  font-size: 1.5rem;
+  border: none;
+  border-radius: 6px;
+  background: #444;
+  color: #fff;
+  cursor: pointer;
+  transition: background 0.3s, transform 0.2s;
+}
+
+.controls button:hover {
+  background: #666;
+  transform: scale(1.05);
+}
+
