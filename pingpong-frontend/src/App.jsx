@@ -1,35 +1,243 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+import React, { useState } from 'react';
+import './App.css';
 
 function App() {
-  const [count, setCount] = useState(0)
+  // Define game phases: 'waiting', 'starting', 'serving', 'game'
+  const [gamePhase, setGamePhase] = useState('waiting');
 
-  return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
+  // Track which player is currently serving ('A' or 'B')
+  const [currentServer, setCurrentServer] = useState('A');
+
+  // MAIN GAME STATES (used in the "game" phase)
+  const [gameScore, setGameScore] = useState({ A: 0, B: 0 });
+  const [playerAStats, setPlayerAStats] = useState({
+    totalHits: 0,
+    recentSwingSpeed: 0,
+    accuracy: 0,
+  });
+  const [playerBStats, setPlayerBStats] = useState({
+    totalHits: 0,
+    recentSwingSpeed: 0,
+    accuracy: 0,
+  });
+
+  // EVENT STATES (for overlays)
+  const [centerHitEvent, setCenterHitEvent] = useState(false);
+  const [scoreEvent, setScoreEvent] = useState(null); // 'A' or 'B'
+
+  // AUDIO FILE PATHS (assumed to be in the public folder)
+  const scoreSounds = [
+    '/scoreSound1.mp3',
+    '/scoreSound2.mp3',
+    '/scoreSound3.mp3',
+    '/scoreSound4.mp3',
+    '/scoreSound5.mp3',
+  ];
+  const centerHitSound = '/centerHit.mp3';
+  const startGameSound = '/startGameSound.mp3';
+
+  // HELPER: Play a random score sound
+  const playRandomScoreSound = () => {
+    const randomIndex = Math.floor(Math.random() * scoreSounds.length);
+    const audio = new Audio(scoreSounds[randomIndex]);
+    audio.play();
+  };
+
+  // HELPER: Play center hit sound
+  const playCenterHitSound = () => {
+    const audio = new Audio(centerHitSound);
+    audio.play();
+  };
+
+  // HELPER: Play start game sound
+  const playStartGameSound = () => {
+    const audio = new Audio(startGameSound);
+    audio.play();
+  };
+
+  // --- PHASE TRANSITIONS ---
+
+  // 1) WAITING -> STARTING -> SERVING -> GAME
+  const simulateSensorsPressed = () => {
+    // Move from waiting -> starting
+    playStartGameSound();
+    setGamePhase('starting');
+
+    // After 2 seconds, move to "serving" for Player A
+    setTimeout(() => {
+      setCurrentServer('A');
+      setGamePhase('serving');
+
+      // After 3 seconds, move to the main game
+      setTimeout(() => {
+        setGamePhase('game');
+      }, 3000);
+    }, 2000);
+  };
+
+  // 2) Show the serve screen for whichever player is now serving
+  //    then go back to the main game after 2 seconds
+  const showServeScreen = (server) => {
+    setCurrentServer(server);
+    setGamePhase('serving');
+    setTimeout(() => {
+      setGamePhase('game');
+    }, 2000);
+  };
+
+  // --- CENTER HIT EVENT ---
+  const triggerCenterHit = () => {
+    playCenterHitSound();
+    setCenterHitEvent(true);
+    setTimeout(() => setCenterHitEvent(false), 3000);
+  };
+
+  // --- SCORING EVENT ---
+  const triggerScoreEvent = (winner) => {
+    playRandomScoreSound();
+
+    // Update score and stats based on the winner
+    setGameScore((prev) => {
+      const newA = winner === 'A' ? prev.A + 1 : prev.A;
+      const newB = winner === 'B' ? prev.B + 1 : prev.B;
+
+      if (winner === 'A') {
+        setPlayerAStats((prevStats) => {
+          const newHits = prevStats.totalHits + 1;
+          const newAccuracy = newB > 0 ? Math.round((newHits / newB) * 100) : 0;
+          return {
+            ...prevStats,
+            totalHits: newHits,
+            recentSwingSpeed: Math.random() * 10,
+            accuracy: newAccuracy,
+          };
+        });
+      } else {
+        setPlayerBStats((prevStats) => {
+          const newHits = prevStats.totalHits + 1;
+          const newAccuracy = newA > 0 ? Math.round((newHits / newA) * 100) : 0;
+          return {
+            ...prevStats,
+            totalHits: newHits,
+            recentSwingSpeed: Math.random() * 10,
+            accuracy: newAccuracy,
+          };
+        });
+      }
+
+      return { A: newA, B: newB };
+    });
+
+    // Show the "Score!" / "Good Try!" overlay
+    setScoreEvent(winner);
+    setTimeout(() => {
+      setScoreEvent(null);
+
+      // After the overlay, show the "serve" screen for the scoring player
+      showServeScreen(winner);
+    }, 3000);
+  };
+
+  // ----------------------------------------------------
+  // RENDER BASED ON GAME PHASE
+  // ----------------------------------------------------
+  if (gamePhase === 'waiting') {
+    // WAITING SCREEN
+    return (
+      <div className="waiting-screen">
+        <img
+          src="/paddles.png"
+          alt="Ping Pong Paddles"
+          className="paddles-image"
+        />
+        <h1>Prime Pong</h1>
+        <button onClick={simulateSensorsPressed}>
+          Simulate Both Sensors Pressed
         </button>
-        <p>
-          Edit <code>src/App.jsx</code> and save to test HMR
-        </p>
       </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
-  )
+    );
+  } else if (gamePhase === 'starting') {
+    // QUICK "GAME START!" SCREEN
+    return (
+      <div className="start-screen">
+        <h1>Game Start!</h1>
+      </div>
+    );
+  } else if (gamePhase === 'serving') {
+    // SERVING SCREEN: Show who is serving
+    return (
+      <div className="serve-screen">
+        <h1>Player {currentServer} Serve</h1>
+      </div>
+    );
+  } else {
+    // MAIN GAME SCREEN (gamePhase === 'game')
+    return (
+      <div className="app-container">
+        {/* Scoreboard */}
+        <div className="score-board">
+          <h1>
+            {gameScore.A}:{gameScore.B}
+          </h1>
+        </div>
+
+        {/* Player A Stats */}
+        <div className="player-stats left-stats">
+          <h2>Player A</h2>
+          <p>Total Hits: {playerAStats.totalHits}</p>
+          <p>Recent Swing Speed: {playerAStats.recentSwingSpeed.toFixed(1)} m/s</p>
+          <p>Accuracy: {playerAStats.accuracy}%</p>
+        </div>
+
+        {/* Player B Stats */}
+        <div className="player-stats right-stats">
+          <h2>Player B</h2>
+          <p>Total Hits: {playerBStats.totalHits}</p>
+          <p>Recent Swing Speed: {playerBStats.recentSwingSpeed.toFixed(1)} m/s</p>
+          <p>Accuracy: {playerBStats.accuracy}%</p>
+        </div>
+
+        {/* Center-Hit Explosion Overlay */}
+        {centerHitEvent && (
+          <div className="overlay explosion">
+            <h1>BOOM! CENTER HIT</h1>
+          </div>
+        )}
+
+        {/* Score Event Overlay */}
+        {scoreEvent && (
+          <div className="overlay score-event">
+            {scoreEvent === 'A' ? (
+              <>
+                <div className="score-event-half winner">
+                  <h1>Score!</h1>
+                </div>
+                <div className="score-event-half loser">
+                  <h1>Good Try!</h1>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="score-event-half loser">
+                  <h1>Good Try!</h1>
+                </div>
+                <div className="score-event-half winner">
+                  <h1>Score!</h1>
+                </div>
+              </>
+            )}
+          </div>
+        )}
+
+        {/* Demo Controls */}
+        <div className="controls">
+          <button onClick={triggerCenterHit}>Trigger Center Hit</button>
+          <button onClick={() => triggerScoreEvent('A')}>Player A Scores</button>
+          <button onClick={() => triggerScoreEvent('B')}>Player B Scores</button>
+        </div>
+      </div>
+    );
+  }
 }
 
-export default App
+export default App;
