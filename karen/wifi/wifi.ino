@@ -40,6 +40,7 @@ void loop()
   Serial.println("Connected to WiFi");
   Serial.print("IP Address: ");
   Serial.println(WiFi.localIP());
+  delay(5000);
 
   // Variable to store ADC value ( 0 to 1023 )
   int level;
