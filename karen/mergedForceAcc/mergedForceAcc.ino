@@ -17,8 +17,8 @@ const char* password = "password";
 ESP8266WebServer server(80);
 
 void handleRoot() {
-  int level = analogRead(A0);  // Read force sensor value
-  server.send(200, "text/plain", String(level)); // Send as plain text
+  int forceVal = analogRead(A0);  // Read force sensor value
+  server.send(200, "text/plain", String(forceVal)); // Send as plain text
 }
 
 void setup() {
@@ -54,11 +54,11 @@ void setup() {
 
 
   // Connect to Wi-Fi
-  WiFi.begin(ssid, password);
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(1000);
-    Serial.println("Connecting to WiFi...");
-  }
+  // WiFi.begin(ssid, password);
+  // while (WiFi.status() != WL_CONNECTED) {
+  //   delay(1000);
+  //   Serial.println("Connecting to WiFi...");
+  // }
 
   Serial.println("Connected to WiFi");
   Serial.print("IP Address: ");
@@ -74,15 +74,53 @@ void setup() {
 void loop() {
   server.handleClient();  // Handle incoming HTTP requests
 
-  int level = analogRead(A0);
+  int forceVal = analogRead(A0);
 
-  // LED control based on force sensor value
-  digitalWrite(D3, level < 20 ? LOW : HIGH);
-  digitalWrite(D4, level < 20 ? HIGH : LOW);
+  int hit = 0;
+  if (forceVal > 20) {
+    int hit = 1;
+    digitalWrite(D3, HIGH);
+    digitalWrite(D4, LOW);
+  }
+  else {
+    int hit = 0;
+    digitalWrite(D3, LOW);
+    digitalWrite(D4, HIGH);
+  }
+
+  // // LED control based on force sensor value
+  // digitalWrite(D3, forceVal < 20 ? LOW : HIGH);
+  // digitalWrite(D4, forceVal < 20 ? HIGH : LOW);
 
     // Get new sensor events
   sensors_event_t a, g, temp;
   mpu.getEvent(&a, &g, &temp);
+
+  float accelMagnitude = sqrt(a.acceleration.x * a.acceleration.x + 
+                            a.acceleration.y * a.acceleration.y + 
+                            a.acceleration.z * a.acceleration.z);
+  String movement;
+  if (accelMagnitude > 15) {
+    movement = "Fast";
+  } else if (accelMagnitude > 5) {
+    movement = "Slow";
+  } else {
+    movement = "Still";
+  } 
+
+  // Print status to Serial Monitor
+  // Serial.print("Filtered Force Value: "); Serial.print(forceValue);
+  // Serial.print(" | Hit: "); Serial.print(hit ? "Yes" : "No");
+
+  Serial.print("Force Value: "); Serial.print(forceVal);
+  Serial.print(" | Movement: "); Serial.println(movement);
+  Serial.print(" | Hit: "); 
+  Serial.print(" | Hit: ");
+    if (hit == 1) {
+      Serial.print("Yes");
+    } else {
+      Serial.print("No");
+    }
 
   // // Print accelerometer data
   // Serial.print("Accel X: "); Serial.print(a.acceleration.x); Serial.print(" m/s^2, ");
