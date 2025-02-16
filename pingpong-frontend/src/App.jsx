@@ -1,211 +1,206 @@
 import React, { useState, useEffect } from 'react';
 import './App.css';
 
-function App() {
-  // Define game phases: 'waiting', 'starting', 'serving', 'game'
+export default function App() {
+  // ---------------------
+  // GAME STATE
+  // ---------------------
   const [gamePhase, setGamePhase] = useState('waiting');
-
-  // Track which player is currently serving ('A' or 'B')
   const [currentServer, setCurrentServer] = useState('A');
-
-  // MAIN GAME STATES (used in the "game" phase)
   const [gameScore, setGameScore] = useState({ A: 0, B: 0 });
+
+  // Player A stats
   const [playerAStats, setPlayerAStats] = useState({
-    totalHits: 0,
-    recentSwingSpeed: 0,
-    accuracy: 0,
-  });
-  const [playerBStats, setPlayerBStats] = useState({
-    totalHits: 0,
-    recentSwingSpeed: 0,
-    accuracy: 0,
+    totalHits: 0
   });
 
-  // EVENT STATES (for overlays)
+  // Player B stats
+  const [playerBStats, setPlayerBStats] = useState({
+    totalHits: 0
+  });
+
+  // Overlays (center hit, scoring)
   const [centerHitEvent, setCenterHitEvent] = useState(false);
   const [scoreEvent, setScoreEvent] = useState(null); // 'A' or 'B'
 
-  // AUDIO FILE PATHS (assumed to be in the public folder)
-  const scoreSounds = [
-    '/scoreSound1.mp3',
-    '/scoreSound2.mp3',
-    '/scoreSound3.mp3',
-    '/scoreSound4.mp3',
-    '/scoreSound5.mp3',
-  ];
-  const centerHitSound = '/centerHit.mp3';
-  const startGameSound = '/startGameSound.mp3';
-
-  // SENSOR DATA STATE
-  const [sensorData, setSensorData] = useState({
+  // ---------------------
+  // SENSOR DATA
+  // ---------------------
+  // Player A => IP .13
+  const [sensorA, setSensorA] = useState({
     force_value: 0,
     accel_x: 0,
     accel_y: 0,
     accel_z: 0,
-    movement: 'Still',
-    hit: false,
-    swing: false,
+    movement: 'not moving'
   });
 
-  // NEW: State to show/hide the "SWING!" message
-  const [showSwing, setShowSwing] = useState(false);
+  // Player B => IP .12
+  const [sensorB, setSensorB] = useState({
+    force_value: 0,
+    accel_x: 0,
+    accel_y: 0,
+    accel_z: 0,
+    movement: 'not moving'
+  });
 
-  // Fetch sensor data frequently (e.g., every 200 ms)
-  useEffect(() => {
-    const interval = setInterval(() => {
-      fetch('http://172.20.10.12/') // Replace with your ESP8266 IP
-        .then((response) => response.json())
-        .then((data) => {
-          // Convert 0/1 to boolean, store in sensorData
-          setSensorData({
-            force_value: data.force_value,
-            accel_x: data.accel_x,
-            accel_y: data.accel_y,
-            accel_z: data.accel_z,
-            movement: data.movement,
-            hit: !!data.hit,
-            swing: !!data.swing,
-          });
-        })
-        .catch((err) => {
-          console.error('Error fetching sensor data:', err);
-        });
-    }, 1); // fetch every 1ms
-
-    return () => clearInterval(interval);
-  }, []);
-
-  // Whenever sensorData.swing changes, show "SWING!" for 0.5s.
-  // After 0.5s, check if STILL a swing; if no, hide.
-  useEffect(() => {
-    if (sensorData.swing) {
-      setShowSwing(true);
-      const timer = setTimeout(() => {
-        // If the sensor STILL reports swing, do nothing
-        // If not, hide it
-        if (!sensorData.swing) {
-          setShowSwing(false);
-        }
-      }, 660); // display text time 660 is nice
-
-      // Cleanup in case sensorData.swing toggles quickly
-      return () => clearTimeout(timer);
-    } else {
-      // No swing => hide it
-      setShowSwing(false);
-    }
-  }, [sensorData.swing]);
-
-  // HELPER: Play a random score sound
+  // ---------------------
+  // Audio (optional)
+  // ---------------------
   const playRandomScoreSound = () => {
-    const randomIndex = Math.floor(Math.random() * scoreSounds.length);
-    const audio = new Audio(scoreSounds[randomIndex]);
-    audio.play();
+    const scoreSounds = [
+      '/scoreSound1.mp3',
+      '/scoreSound2.mp3',
+      '/scoreSound3.mp3',
+      '/scoreSound4.mp3',
+      '/scoreSound5.mp3'
+    ];
+    const idx = Math.floor(Math.random() * scoreSounds.length);
+    new Audio(scoreSounds[idx]).play();
   };
 
-  // HELPER: Play center hit sound
   const playCenterHitSound = () => {
-    const audio = new Audio(centerHitSound);
-    audio.play();
+    new Audio('/centerHit.mp3').play();
   };
 
-  // HELPER: Play start game sound
   const playStartGameSound = () => {
-    const audio = new Audio(startGameSound);
-    audio.play();
+    new Audio('/startGameSound.mp3').play();
   };
 
-  // --- PHASE TRANSITIONS ---
+  // ---------------------
+  // SIMPLE GAME FLOW
+  // ---------------------
   const simulateSensorsPressed = () => {
-    // Move from waiting -> starting
     playStartGameSound();
     setGamePhase('starting');
-
-    // After 2 seconds, move to "serving" for Player A
     setTimeout(() => {
       setCurrentServer('A');
       setGamePhase('serving');
-
-      // After 3 seconds, move to the main game
-      setTimeout(() => {
-        setGamePhase('game');
-      }, 3000);
+      setTimeout(() => setGamePhase('game'), 3000);
     }, 2000);
   };
 
   const showServeScreen = (server) => {
     setCurrentServer(server);
     setGamePhase('serving');
-    setTimeout(() => {
-      setGamePhase('game');
-    }, 2000);
+    setTimeout(() => setGamePhase('game'), 2000);
   };
 
-  // --- CENTER HIT EVENT ---
+  // ---------------------
+  // CENTER HIT EVENT
+  // ---------------------
   const triggerCenterHit = () => {
+    // Only trigger once if not already active
+    if (centerHitEvent) return; 
+    console.log('Center hit triggered!');
     playCenterHitSound();
     setCenterHitEvent(true);
-    setTimeout(() => setCenterHitEvent(false), 3000);
+
+    // If you want center hits to increment both players, you can do so here:
+    setPlayerAStats((prev) => ({ ...prev, totalHits: prev.totalHits + 1 }));
+    setPlayerBStats((prev) => ({ ...prev, totalHits: prev.totalHits + 1 }));
+
+    setTimeout(() => {
+      setCenterHitEvent(false);
+    }, 3000);
   };
 
-  // --- SCORING EVENT ---
+  // ---------------------
+  // SCORE EVENT
+  // ---------------------
   const triggerScoreEvent = (winner) => {
     playRandomScoreSound();
-
-    // Update score and stats based on the winner
     setGameScore((prev) => {
       const newA = winner === 'A' ? prev.A + 1 : prev.A;
       const newB = winner === 'B' ? prev.B + 1 : prev.B;
-
       if (winner === 'A') {
-        setPlayerAStats((prevStats) => {
-          const newHits = prevStats.totalHits + 1;
-          const newAccuracy = newB > 0 ? Math.round((newHits / newB) * 100) : 0;
-          return {
-            ...prevStats,
-            totalHits: newHits,
-            recentSwingSpeed: Math.random() * 10,
-            accuracy: newAccuracy,
-          };
-        });
+        setPlayerAStats((p) => ({ ...p, totalHits: p.totalHits + 1 }));
       } else {
-        setPlayerBStats((prevStats) => {
-          const newHits = prevStats.totalHits + 1;
-          const newAccuracy = newA > 0 ? Math.round((newHits / newA) * 100) : 0;
-          return {
-            ...prevStats,
-            totalHits: newHits,
-            recentSwingSpeed: Math.random() * 10,
-            accuracy: newAccuracy,
-          };
-        });
+        setPlayerBStats((p) => ({ ...p, totalHits: p.totalHits + 1 }));
       }
-
       return { A: newA, B: newB };
     });
-
-    // Show the "Score!" / "Good Try!" overlay
     setScoreEvent(winner);
     setTimeout(() => {
       setScoreEvent(null);
-
-      // After the overlay, show the "serve" screen for the scoring player
       showServeScreen(winner);
     }, 3000);
   };
 
-  // ----------------------------------------------------
-  // RENDER BASED ON GAME PHASE
-  // ----------------------------------------------------
+  // ---------------------
+  // POLL: PLAYER A => IP .13
+  // (Remove the line that increments A if force_value=1
+  // to avoid double increments.)
+  // ---------------------
+  useEffect(() => {
+    const pollA = async () => {
+      try {
+        const resp = await fetch('http://172.20.10.13/');
+        if (!resp.ok) throw new Error('Bad response from A');
+        const data = await resp.json();
+
+        // NO direct increment of playerAStats here
+        // We only read sensor data
+        setSensorA({
+          force_value: data.force_value,
+          accel_x: data.accel_x,
+          accel_y: data.accel_y,
+          accel_z: data.accel_z,
+          movement: data.movement.toLowerCase()
+        });
+      } catch (err) {
+        console.error('Error polling A (.13):', err);
+      }
+    };
+
+    pollA();
+    const intA = setInterval(pollA, 1000);
+    return () => clearInterval(intA);
+  }, []);
+
+  // ---------------------
+  // POLL: PLAYER B => IP .12
+  // ---------------------
+  useEffect(() => {
+    const pollB = async () => {
+      try {
+        const resp = await fetch('http://172.20.10.12/');
+        if (!resp.ok) throw new Error('Bad response from B');
+        const data = await resp.json();
+
+        setSensorB({
+          force_value: data.force_value,
+          accel_x: data.accel_x,
+          accel_y: data.accel_y,
+          accel_z: data.accel_z,
+          movement: data.movement.toLowerCase()
+        });
+      } catch (err) {
+        console.error('Error polling B (.12):', err);
+      }
+    };
+
+    pollB();
+    const intB = setInterval(pollB, 1000);
+    return () => clearInterval(intB);
+  }, []);
+
+  // ---------------------
+  // useEffect: If either sensor has force=1 => centerHit
+  // This is optional. If you only want centerHit for Player A, check only sensorA.
+  // ---------------------
+  useEffect(() => {
+    if ((sensorA.force_value === 1 || sensorB.force_value === 1) && !centerHitEvent) {
+      triggerCenterHit();
+    }
+  }, [sensorA.force_value, sensorB.force_value, centerHitEvent]);
+
+  // ---------------------
+  // RENDER
+  // ---------------------
   if (gamePhase === 'waiting') {
-    // WAITING SCREEN
     return (
       <div className="waiting-screen">
-        <img
-          src="/paddles.png"
-          alt="Ping Pong Paddles"
-          className="paddles-image"
-        />
         <h1>Prime Pong</h1>
         <button onClick={simulateSensorsPressed}>
           Simulate Both Sensors Pressed
@@ -213,21 +208,19 @@ function App() {
       </div>
     );
   } else if (gamePhase === 'starting') {
-    // QUICK "GAME START!" SCREEN
     return (
       <div className="start-screen">
         <h1>Game Start!</h1>
       </div>
     );
   } else if (gamePhase === 'serving') {
-    // SERVING SCREEN: Show who is serving
     return (
       <div className="serve-screen">
         <h1>Player {currentServer} Serve</h1>
       </div>
     );
   } else {
-    // MAIN GAME SCREEN (gamePhase === 'game')
+    // MAIN "GAME" SCREEN
     return (
       <div className="app-container">
         {/* Scoreboard */}
@@ -237,25 +230,21 @@ function App() {
           </h1>
         </div>
 
-        {/* Player A Stats */}
+        {/* Player A Column */}
         <div className="player-stats left-stats">
           <h2>Player A</h2>
           <p>Total Hits: {playerAStats.totalHits}</p>
-          <p>Recent Swing Speed: {playerAStats.recentSwingSpeed.toFixed(1)} m/s</p>
-          <p>Accuracy: {playerAStats.accuracy}%</p>
+          {sensorA.movement === 'very fast' && <p className="swing-message">SWING!</p>}
         </div>
 
-        {/* Player B Stats */}
+        {/* Player B Column */}
         <div className="player-stats right-stats">
           <h2>Player B</h2>
           <p>Total Hits: {playerBStats.totalHits}</p>
-          <p>Recent Swing Speed: {playerBStats.recentSwingSpeed.toFixed(1)} m/s</p>
-          <p>Accuracy: {playerBStats.accuracy}%</p>
-
-          {playerBStats.swingDetected && ( <h1 className="swing-text">SWING!</h1>)}
+          {sensorB.movement === 'very fast' && <p className="swing-message">SWING!</p>}
         </div>
 
-        {/* Center-Hit Explosion Overlay */}
+        {/* Center-Hit Overlay */}
         {centerHitEvent && (
           <div className="overlay explosion">
             <h1>BOOM! CENTER HIT</h1>
@@ -293,33 +282,7 @@ function App() {
           <button onClick={() => triggerScoreEvent('A')}>Player A Scores</button>
           <button onClick={() => triggerScoreEvent('B')}>Player B Scores</button>
         </div>
-
-        {/* --- NEW: Real-time Sensor Data from ESP8266 --- */}
-        {/* <div className="esp8266-sensor-data">
-          <h2>ESP8266 Sensor Data</h2>
-          <ul>
-            <li>Force Value: {sensorData.force_value}</li>
-            <li>
-              Accel (x, y, z): {sensorData.accel_x.toFixed(2)}, {sensorData.accel_y.toFixed(2)}, {sensorData.accel_z.toFixed(2)}
-            </li>
-            <li>Movement: {sensorData.movement}</li>
-            <li>Hit: {sensorData.hit ? 'Yes' : 'No'}</li>
-            <li>Swing: {sensorData.swing ? 'Yes' : 'No'}</li>
-          </ul>
-        </div> */}
-
-        {/* --- NEW: 'SWING!' text if showSwing is true --- */}
-        {showSwing && (
-          <div className="player-stats right-stats">
-            <h1>SWING!</h1>
-          </div>
-        )}
-
       </div>
     );
   }
 }
-
-export default App;
-
-
