@@ -36,7 +36,7 @@ function App() {
   const centerHitSound = '/centerHit.mp3';
   const startGameSound = '/startGameSound.mp3';
 
-  // SENSOR DATA STATE
+  // --- NEW: SENSOR DATA STATES ---
   const [sensorData, setSensorData] = useState({
     force_value: 0,
     accel_x: 0,
@@ -47,54 +47,39 @@ function App() {
     swing: false,
   });
 
-  // NEW: State to show/hide the "SWING!" message
-  const [showSwing, setShowSwing] = useState(false);
-
-  // Fetch sensor data frequently (e.g., every 200 ms)
+  // Fetch sensor data periodically
   useEffect(() => {
     const interval = setInterval(() => {
       fetch('http://172.20.10.12/') // Replace with your ESP8266 IP
         .then((response) => response.json())
         .then((data) => {
-          // Convert 0/1 to boolean, store in sensorData
+          // data might look like:
+          // {
+          //   force_value: 5,
+          //   accel_x: 9.86,
+          //   accel_y: -0.21,
+          //   accel_z: 0.08,
+          //   movement: "Slow",
+          //   hit: 0,            // 0 or 1
+          //   swing: 1           // 0 or 1
+          // }
           setSensorData({
             force_value: data.force_value,
             accel_x: data.accel_x,
             accel_y: data.accel_y,
             accel_z: data.accel_z,
             movement: data.movement,
-            hit: !!data.hit,
-            swing: !!data.swing,
+            hit: !!data.hit,      // Convert 0/1 to boolean
+            swing: !!data.swing,  // Convert 0/1 to boolean
           });
         })
         .catch((err) => {
           console.error('Error fetching sensor data:', err);
         });
-    }, 1); // fetch every 1ms
+    }, 1000); // fetch once every second
 
     return () => clearInterval(interval);
   }, []);
-
-  // Whenever sensorData.swing changes, show "SWING!" for 0.5s.
-  // After 0.5s, check if STILL a swing; if no, hide.
-  useEffect(() => {
-    if (sensorData.swing) {
-      setShowSwing(true);
-      const timer = setTimeout(() => {
-        // If the sensor STILL reports swing, do nothing
-        // If not, hide it
-        if (!sensorData.swing) {
-          setShowSwing(false);
-        }
-      }, 300); // keep on for 300ms
-
-      // Cleanup in case sensorData.swing toggles quickly
-      return () => clearTimeout(timer);
-    } else {
-      // No swing => hide it
-      setShowSwing(false);
-    }
-  }, [sensorData.swing]);
 
   // HELPER: Play a random score sound
   const playRandomScoreSound = () => {
@@ -116,6 +101,8 @@ function App() {
   };
 
   // --- PHASE TRANSITIONS ---
+
+  // 1) WAITING -> STARTING -> SERVING -> GAME
   const simulateSensorsPressed = () => {
     // Move from waiting -> starting
     playStartGameSound();
@@ -133,6 +120,8 @@ function App() {
     }, 2000);
   };
 
+  // 2) Show the serve screen for whichever player is now serving
+  //    then go back to the main game after 2 seconds
   const showServeScreen = (server) => {
     setCurrentServer(server);
     setGamePhase('serving');
@@ -241,7 +230,9 @@ function App() {
         <div className="player-stats left-stats">
           <h2>Player A</h2>
           <p>Total Hits: {playerAStats.totalHits}</p>
-          <p>Recent Swing Speed: {playerAStats.recentSwingSpeed.toFixed(1)} m/s</p>
+          <p>
+            Recent Swing Speed: {playerAStats.recentSwingSpeed.toFixed(1)} m/s
+          </p>
           <p>Accuracy: {playerAStats.accuracy}%</p>
         </div>
 
@@ -249,7 +240,9 @@ function App() {
         <div className="player-stats right-stats">
           <h2>Player B</h2>
           <p>Total Hits: {playerBStats.totalHits}</p>
-          <p>Recent Swing Speed: {playerBStats.recentSwingSpeed.toFixed(1)} m/s</p>
+          <p>
+            Recent Swing Speed: {playerBStats.recentSwingSpeed.toFixed(1)} m/s
+          </p>
           <p>Accuracy: {playerBStats.accuracy}%</p>
         </div>
 
@@ -297,21 +290,12 @@ function App() {
           <h2>ESP8266 Sensor Data</h2>
           <ul>
             <li>Force Value: {sensorData.force_value}</li>
-            <li>
-              Accel (x, y, z): {sensorData.accel_x.toFixed(2)}, {sensorData.accel_y.toFixed(2)}, {sensorData.accel_z.toFixed(2)}
-            </li>
+            <li>Accel (x, y, z): {sensorData.accel_x.toFixed(2)}, {sensorData.accel_y.toFixed(2)}, {sensorData.accel_z.toFixed(2)}</li>
             <li>Movement: {sensorData.movement}</li>
             <li>Hit: {sensorData.hit ? 'Yes' : 'No'}</li>
             <li>Swing: {sensorData.swing ? 'Yes' : 'No'}</li>
           </ul>
         </div>
-
-        {/* --- NEW: 'SWING!' text if showSwing is true --- */}
-        {showSwing && (
-          <div className="swing-overlay">
-            <h1>SWING!</h1>
-          </div>
-        )}
       </div>
     );
   }
