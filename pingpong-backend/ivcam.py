@@ -2,7 +2,7 @@ import cv2
 import numpy as np
 
 # Set your iVCam URL (check the app for the correct address)
-stream_url = "http://your-iphone-ip:port/video"
+stream_url = "http://100.66.66.65:139/video"
 
 # Open video stream
 cap = cv2.VideoCapture(stream_url)
