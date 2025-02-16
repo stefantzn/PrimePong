@@ -23,14 +23,14 @@ void handleRoot() {
                               a.acceleration.y * a.acceleration.y + 
                               a.acceleration.z * a.acceleration.z);
 
-  bool hit = (forceVal > 15);
-  bool swing = (accelMagnitude > 20);
+  bool hit = (forceVal > 6);
+  bool swing = (accelMagnitude > 17);
   
   String movement;
-  if (accelMagnitude > 20) {
-    movement = "Very Fast (Swing)";
-  } else if (accelMagnitude > 15) {
-    movement = "Swing";
+  if (accelMagnitude > 17) {
+    movement = "Very Fast";
+  } else if (accelMagnitude > 10) {
+    movement = "Fast";
   } else if (accelMagnitude > 5) {
     movement = "Slow";
   } else {
@@ -96,7 +96,7 @@ void loop() {
   server.handleClient();  // Handle incoming HTTP requests
 
   int forceVal = analogRead(A0);
-  bool hit = (forceVal > 15);
+  bool hit = (forceVal > 6);
   
   // Get accelerometer readings
   sensors_event_t a, g, temp;
@@ -106,13 +106,13 @@ void loop() {
                               a.acceleration.y * a.acceleration.y + 
                               a.acceleration.z * a.acceleration.z);
 
-  bool swing = (accelMagnitude > 20);
+  bool swing = (accelMagnitude > 17);
   
   String movement;
-  if (accelMagnitude > 20) {
-    movement = "Very Fast (Swing)";
-  } else if (accelMagnitude > 15) {
-    movement = "Swing";
+  if (accelMagnitude > 17) {
+    movement = "Very Fast";
+  } else if (accelMagnitude > 10) {
+    movement = "Fast";
   } else if (accelMagnitude > 5) {
     movement = "Slow";
   } else {
