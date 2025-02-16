@@ -153,6 +153,15 @@ body, html {
   right: 20px;
 }
 
+.swing-text {
+  margin-top: 1rem;   /* Moves it lower down */
+  text-align: center; /* Centers text horizontally */
+  /* Optionally adjust font size, color, etc.: */
+  /* font-size: 1.5rem; */
+  /* color: #ff0000; */
+}
+
+
 /* Full-screen overlay for events */
 .overlay {
   position: absolute;

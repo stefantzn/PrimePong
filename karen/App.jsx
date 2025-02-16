@@ -86,7 +86,7 @@ function App() {
         if (!sensorData.swing) {
           setShowSwing(false);
         }
-      }, 300); // keep on for 300ms
+      }, 660); // display text time 660 is nice
 
       // Cleanup in case sensorData.swing toggles quickly
       return () => clearTimeout(timer);
