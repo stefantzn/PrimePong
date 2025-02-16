@@ -16,7 +16,38 @@ Adafruit_MPU6050 mpu;
 
 void handleRoot() {
   int forceVal = analogRead(A0);  // Read force sensor value
-  server.send(200, "text/plain", String(forceVal)); // Send as plain text
+  sensors_event_t a, g, temp;
+  mpu.getEvent(&a, &g, &temp);
+
+  float accelMagnitude = sqrt(a.acceleration.x * a.acceleration.x + 
+                              a.acceleration.y * a.acceleration.y + 
+                              a.acceleration.z * a.acceleration.z);
+
+  bool hit = (forceVal > 15);
+  bool swing = (accelMagnitude > 20);
+  
+  String movement;
+  if (accelMagnitude > 20) {
+    movement = "Very Fast (Swing)";
+  } else if (accelMagnitude > 15) {
+    movement = "Swing";
+  } else if (accelMagnitude > 5) {
+    movement = "Slow";
+  } else {
+    movement = "Still";
+  }
+  
+  // Create a JSON string with all sensor data
+  String response = "{";
+  response += "\"force_value\": " + String(forceVal) + ", ";
+  response += "\"accel_x\": " + String(a.acceleration.x) + ", ";
+  response += "\"accel_y\": " + String(a.acceleration.y) + ", ";
+  response += "\"accel_z\": " + String(a.acceleration.z) + ", ";
+  response += "\"movement\": \"" + movement + "\", ";
+  response += "\"hit\": " + String(hit) + ", ";
+  response += "\"swing\": " + String(swing) + "}";
+  
+  server.send(200, "application/json", response); // Send JSON response
 }
 
 void setup() {
@@ -43,6 +74,13 @@ void setup() {
   mpu.setGyroRange(MPU6050_RANGE_250_DEG);
   mpu.setFilterBandwidth(MPU6050_BAND_21_HZ);
 
+    // Connect to Wi-Fi
+  WiFi.begin(ssid, password);
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(1000);
+    Serial.println("Connecting to WiFi...");
+  }
+
   Serial.println("Connected to WiFi");
   Serial.print("IP Address: ");
   Serial.println(WiFi.localIP());
@@ -66,13 +104,13 @@ void loop() {
                               a.acceleration.y * a.acceleration.y + 
                               a.acceleration.z * a.acceleration.z);
 
+  bool swing = (accelMagnitude > 20);
+  
   String movement;
-  bool swing = false;
   if (accelMagnitude > 20) {
     movement = "Very Fast (Swing)";
-    swing = true;
   } else if (accelMagnitude > 15) {
-    movement = "swing";
+    movement = "Swing";
   } else if (accelMagnitude > 5) {
     movement = "Slow";
   } else {
