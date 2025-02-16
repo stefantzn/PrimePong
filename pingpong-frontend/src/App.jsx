@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import './App.css';
 
 class App extends React.Component {
@@ -16,15 +16,73 @@ class App extends React.Component {
     this.forceIntervalId = null;
   }
 
-  // --- AUDIO HELPERS ---
-  playRandomScoreSound = () => {
-    const scoreSounds = [
-      '/scoreSound1.mp3',
-      '/scoreSound2.mp3',
-      '/scoreSound3.mp3',
-      '/scoreSound4.mp3',
-      '/scoreSound5.mp3'
-    ];
+  // AUDIO FILE PATHS (assumed to be in the public folder)
+  const scoreSounds = [
+    '/scoreSound1.mp3',
+    '/scoreSound2.mp3',
+    '/scoreSound3.mp3',
+    '/scoreSound4.mp3',
+    '/scoreSound5.mp3',
+  ];
+  const centerHitSound = '/centerHit.mp3';
+  const startGameSound = '/startGameSound.mp3';
+
+  // SENSOR DATA STATE
+  const [sensorData, setSensorData] = useState({
+    force_value: 0,
+    accel_x: 0,
+    accel_y: 0,
+    accel_z: 0,
+    movement: 'Still',
+    hit: false,
+    swing: false,
+  });
+
+  // NEW: State to show/hide a separate "SWING!" message
+  const [showSwing, setShowSwing] = useState(false);
+
+  // Fetch sensor data every 200 ms (as an example of frequent polling)
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetch('http://172.20.10.12/') // Replace with your ESP8266 IP
+        .then((response) => response.json())
+        .then((data) => {
+          setSensorData({
+            force_value: data.force_value,
+            accel_x: data.accel_x,
+            accel_y: data.accel_y,
+            accel_z: data.accel_z,
+            movement: data.movement,
+            hit: !!data.hit,      // Convert 0/1 to boolean
+            swing: !!data.swing,  // Convert 0/1 to boolean
+          });
+        })
+        .catch((err) => {
+          console.error('Error fetching sensor data:', err);
+        });
+    }, 1); // fetch every 1 ms
+
+    return () => clearInterval(interval);
+  }, []);
+
+  // WATCH FOR CHANGES TO sensorData.swing
+  useEffect(() => {
+    if (sensorData.swing) {
+      // Show the SWING! message
+      setShowSwing(true);
+
+      // Hide after 1 second
+      const timer = setTimeout(() => {
+        setShowSwing(false);
+      }, 200); // time in ms of displaying
+
+      // Cleanup
+      return () => clearTimeout(timer);
+    }
+  }, [sensorData.swing]);
+
+  // HELPER: Play a random score sound
+  const playRandomScoreSound = () => {
     const randomIndex = Math.floor(Math.random() * scoreSounds.length);
     new Audio(scoreSounds[randomIndex]).play();
   };
@@ -38,9 +96,12 @@ class App extends React.Component {
   };
 
   // --- PHASE TRANSITIONS ---
-  simulateSensorsPressed = () => {
-    this.playStartGameSound();
-    this.setState({ gamePhase: 'starting' });
+  const simulateSensorsPressed = () => {
+    // Move from waiting -> starting
+    playStartGameSound();
+    setGamePhase('starting');
+
+    // After 2 seconds, move to "serving" for Player A
     setTimeout(() => {
       this.setState({ currentServer: 'A', gamePhase: 'serving' });
       setTimeout(() => {
@@ -49,8 +110,9 @@ class App extends React.Component {
     }, 2000);
   };
 
-  showServeScreen = (server) => {
-    this.setState({ currentServer: server, gamePhase: 'serving' });
+  const showServeScreen = (server) => {
+    setCurrentServer(server);
+    setGamePhase('serving');
     setTimeout(() => {
       this.setState({ gamePhase: 'game' });
     }, 2000);
@@ -225,15 +287,36 @@ class App extends React.Component {
             </div>
           )}
 
-          {/* Demo Controls */}
-          <div className="controls">
-            <button onClick={this.triggerCenterHit}>Trigger Center Hit</button>
-            <button onClick={() => this.triggerScoreEvent('A')}>Player A Scores</button>
-            <button onClick={() => this.triggerScoreEvent('B')}>Player B Scores</button>
-          </div>
+        {/* Demo Controls */}
+        <div className="controls">
+          <button onClick={triggerCenterHit}>Trigger Center Hit</button>
+          <button onClick={() => triggerScoreEvent('A')}>Player A Scores</button>
+          <button onClick={() => triggerScoreEvent('B')}>Player B Scores</button>
         </div>
-      );
-    }
+
+        {/* --- NEW: Real-time Sensor Data from ESP8266 --- */}
+        <div className="esp8266-sensor-data">
+          <h2>ESP8266 Sensor Data</h2>
+          <ul>
+            <li>Force Value: {sensorData.force_value}</li>
+            <li>
+              Accel (x, y, z): {sensorData.accel_x.toFixed(2)}, {sensorData.accel_y.toFixed(2)}, {sensorData.accel_z.toFixed(2)}
+            </li>
+            <li>Movement: {sensorData.movement}</li>
+            <li>Hit: {sensorData.hit ? 'Yes' : 'No'}</li>
+            <li>Swing: {sensorData.swing}</li>
+            <li>Swing: {sensorData.swing ? 'Yes' : 'No'}</li>
+          </ul>
+        </div>
+
+        {/* --- NEW: 'Swing!' text if showSwing is true --- */}
+        {showSwing && (
+          <div className="swing-overlay">
+            <h1>SWING!</h1>
+          </div>
+        )}
+      </div>
+    );
   }
 }
 

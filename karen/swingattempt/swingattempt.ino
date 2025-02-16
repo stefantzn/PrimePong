@@ -23,11 +23,11 @@ void handleRoot() {
                               a.acceleration.y * a.acceleration.y + 
                               a.acceleration.z * a.acceleration.z);
 
-  bool hit = (forceVal > 6);
-  bool swing = (accelMagnitude > 17);
+  bool hit = (forceVal > 12);
+  bool swing = (accelMagnitude > 22);
   
   String movement;
-  if (accelMagnitude > 17) {
+  if (accelMagnitude > 18) {
     movement = "Very Fast";
   } else if (accelMagnitude > 10) {
     movement = "Fast";
@@ -96,7 +96,7 @@ void loop() {
   server.handleClient();  // Handle incoming HTTP requests
 
   int forceVal = analogRead(A0);
-  bool hit = (forceVal > 6);
+  bool hit = (forceVal > 12);
   
   // Get accelerometer readings
   sensors_event_t a, g, temp;
@@ -106,10 +106,10 @@ void loop() {
                               a.acceleration.y * a.acceleration.y + 
                               a.acceleration.z * a.acceleration.z);
 
-  bool swing = (accelMagnitude > 17);
+  bool swing = (accelMagnitude > 22);
   
   String movement;
-  if (accelMagnitude > 17) {
+  if (accelMagnitude > 18) {
     movement = "Very Fast";
   } else if (accelMagnitude > 10) {
     movement = "Fast";
@@ -134,6 +134,6 @@ void loop() {
   Serial.print(" | Hit: "); Serial.print(hit ? "Yes" : "No");
   Serial.print(" | Swing: "); Serial.println(swing ? "Yes" : "No");
 
-  delay(100); // Small delay for stability
+  delay(10); // Small delay for stability
 }
 
