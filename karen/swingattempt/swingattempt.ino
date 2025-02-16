@@ -47,6 +47,8 @@ void handleRoot() {
   response += "\"hit\": " + String(hit) + ", ";
   response += "\"swing\": " + String(swing) + "}";
   
+
+  server.sendHeader("Access-Control-Allow-Origin", "*");
   server.send(200, "application/json", response); // Send JSON response
 }
 
